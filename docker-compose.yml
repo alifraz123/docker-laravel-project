@@ -1,0 +1,59 @@
+services:
+
+  # Container 1: Nginx (web server - receives user requests)
+  nginx:
+    image: nginx:alpine
+    container_name: my-nginx-webserver # 👈 Added custom name
+    ports:
+      - "80:80"           # your browser hits port 80
+    volumes:
+      - .:/var/www/html   # share your code with nginx
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app               # nginx starts AFTER app is ready
+    networks:
+      - app-network
+
+  # Container 2: Laravel + PHP (your actual application)
+  app:
+    build: .              # build using your Dockerfile
+    container_name: my-laravel-app     # 👈 Added custom name
+    volumes:
+      - .:/var/www/html   # your code folder inside container
+    env_file:
+      - .env              # load environment variables
+    depends_on:
+      db:
+        condition: service_healthy   # wait for MySQL to be ready
+    networks:
+      - app-network
+
+  # Container 3: MySQL (database)
+  db:
+    image: mysql:8.0
+    container_name: my-mysql-database  # 👈 Added custom name
+    ports:
+      - "127.0.0.1:3306:3306" # 👈 Add this line to access MySQL from your desktop tools
+    environment:
+      MYSQL_ROOT_PASSWORD: mypassword123
+      MYSQL_DATABASE: mylaravel_db
+      MYSQL_USER: laraveluser
+      MYSQL_PASSWORD: mypassword123
+    volumes:
+      - mysql-data:/var/lib/mysql   # data saved here on your hard disk
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+# Named volume - stores your MySQL data permanently on disk
+volumes:
+  mysql-data:
+
+# Private network so containers talk to each other
+networks:
+  app-network:
+    driver: bridge
