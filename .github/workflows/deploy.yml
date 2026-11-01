@@ -44,4 +44,5 @@ jobs:
             docker compose pull
             
             # 3. Boot everything back up completely clean
-            docker compose up -d --remove-orphans
+            docker compose up -d --build --no-cache --remove-orphans
+
