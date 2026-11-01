@@ -34,10 +34,14 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Authenticate target machine with Docker Hub
             echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-            
-            # Navigate to app directory, pull the fresh image, and cycle containers safely
             cd /home/ubuntu/app
+            
+            # 1. Stop the current running container images to release memory locks
+            docker compose down
+            
+            # 2. Force down the absolute latest image layers from Docker Hub
             docker compose pull
-            docker compose up -d --force-recreate --remove-orphans
+            
+            # 3. Boot everything back up completely clean
+            docker compose up -d --remove-orphans
