@@ -1,0 +1,43 @@
+name: Deploy to AWS EC2 via Docker Hub
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # CRITICAL FIXED STEP: Adds your files to the runner
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      # 1. Log in and Push to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/my-app:latest
+
+      # 2. SSH into EC2 to pull and restart
+      - name: SSH into EC2 & Update Containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Authenticate target machine with Docker Hub
+            echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+            
+            # Navigate to app directory, pull the fresh image, and cycle containers safely
+            cd /home/ubuntu/app
+            docker compose pull
+            docker compose up -d --remove-orphans
